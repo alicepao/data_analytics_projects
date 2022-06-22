@@ -1,7 +1,7 @@
 ---
 title: "Case Study 5: Extra, extra, code all about it"
 author: "Alice Pao"
-date: "June 20, 2022"
+date: "June 21, 2022"
 output: 
   html_document:
     keep_md: TRUE
@@ -88,6 +88,7 @@ top15 %>%
     title = "Top 15 Cities Mentioned in Headlines", 
     subtitle = "Top 1: Sacramento \nTop 2: New York \nTop 3: Las Vegas", 
   )+
+  # add number labels
   geom_text(aes(label=city_count),vjust=0,hjust=0)
 ```
 
