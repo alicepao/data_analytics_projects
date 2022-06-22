@@ -130,6 +130,6 @@ traffic %>%
 
 ![](Case-Study-6_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
 
-### Conclsion Insight
+### Conclusion Insight
 ***
 Though there are some slight different trends depending on various time measurement level, we conclude that HotDiggity is the best business for investment because had the highest gross revenue over the three months. 
