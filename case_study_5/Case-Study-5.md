@@ -1,0 +1,187 @@
+---
+title: "Case Study 5: Extra, extra, code all about it"
+author: "Alice Pao"
+date: "June 20, 2022"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+
+
+
+```r
+library(tidyverse)
+library(maps)
+library(lubridate)
+abc <- read.csv("https://storybench.org/reinventingtv/abc7ny.csv")
+kcra <- read.csv("https://storybench.org/reinventingtv/kcra.csv")
+dat <- rbind(abc, kcra) %>% 
+  select(datetime, headline, feed_name)
+city <- maps::us.cities
+```
+
+### Background
+***
+You are working for management consulting agency A.T. Kearney which produces the Global Cities report. They have put you on a team in charge of developing a new report - the USA Cities report - which identifies the most influential cities in the United States.
+
+Your manager would like to explore using the frequency with which a city appears in news headlines as a contributing factor to their city rankings. 
+
+### Introduction
+***
+From 2 news outlets, KCRA and ABC7NY spanning from July 18, 2017 - Jan 16, 2018, we identified top 15 cities with the highest headline count. 
+
+In this project, we specifially used str_extract to find the mentioned cities. 
+
+### Question 1
+> Find the top 15 mentioned cities in headlines
+
+The most 3 mentioned cities we found are Sacramento, New York, and Las Vegas. This result is reasonable because these are 3 capital cities of California, New York State, and Nevada. 
+
+At first, Sandy was one of the top 15 but we latter realized the search included Superstorm Sandy and Sandy Kenyon, a report. Since Sandy, UT is only mentioned in headline 7 times(less than the 15th mentioned city), we decided to remove it.  
+
+
+```r
+# wrangle city data
+city <- city %>% 
+  separate(name, into = c("city", "state"), -2) %>% 
+  arrange(desc(str_length(city))) %>% 
+  select(city, state)
+
+citystri <- str_flatten(city$city, collapse = "|")
+
+# find most mentioned 15 cities in headlines 
+top15 <- dat %>% 
+  mutate(mentioned_city = str_extract(headline, citystri)) %>% 
+  filter(mentioned_city != "Sandy ") %>% 
+  group_by(mentioned_city) %>% 
+  mutate(city_count = n()) %>% 
+  drop_na() %>% 
+  distinct(mentioned_city, city_count) %>% 
+  arrange(desc(city_count)) %>% 
+  head(15)
+
+# exclude Superstorm Sandy & Sandy Kenyon
+# dat$sandy <- dat %>% 
+#   mutate(sandy = str_detect(headline, "(?<!Superstorm )Sandy(?! Kenyon)(?! Hook)")) %>% 
+#   filter(sandy == TRUE)
+
+# Charlotte vs Charlottesville 
+# dat %>% 
+#   mutate(city = str_extract(headline, "Charlottesville|Charlotte")) %>% 
+#   count(city)    
+
+top15 %>% 
+  ggplot(aes(x = reorder(mentioned_city, -city_count), y = city_count, fill = mentioned_city))+
+  geom_col()+
+  theme(
+    axis.text.x = element_text(angle = -45),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    legend.position = "none"
+  )+
+  scale_fill_hue(c=40)+
+  labs(
+    title = "Top 15 Cities Mentioned in Headlines", 
+    subtitle = "Top 1: Sacramento \nTop 2: New York \nTop 3: Las Vegas", 
+  )+
+  geom_text(aes(label=city_count),vjust=0,hjust=0)
+```
+
+![](Case-Study-5_files/figure-html/unnamed-chunk-2-1.png)<!-- -->
+
+### Question 2
+> Headline count for each city every month 
+
+From the below line chart, we notice that there isn't an obvious change for each city; However, for top 3 mentioned cities, New York, Sacramento, and Las Vegas, we see different pattern of trends. 
+
+New York: The city has been most mentioned in October, November, and December. 
+
+Sacramento: August is the month when it shows up to news headline and the number went down a little but rised again in November and December. 
+
+Las Vegas: Among all 12 months, October has an obvious peek with 200 mentions. 
+
+
+```r
+# split datetime column and change to date type
+top15_month <- dat %>% 
+  mutate(mentioned_city = str_extract(headline, citystri)) %>% 
+  separate(datetime, into = c("date", "time"), sep = " at ", remove = TRUE)
+  # change to datetime type
+top15_month$date <- as.Date(top15_month$date, format = "%B %d, %Y") 
+  # extract month 
+top15_month$month <- month(top15_month$date, label = TRUE)
+
+topcities <- str_flatten(top15$mentioned_city, collapse = "|")
+
+# filter top 15 cities 
+top15_month$filter <- str_detect(top15_month$mentioned_city, pattern = topcities)
+top15_month <- top15_month %>% 
+  filter(filter == "TRUE") %>% 
+  filter(mentioned_city != "West Sacramento ") %>% 
+  select(-filter) %>% 
+  # group_by month
+  group_by(mentioned_city, month) %>%
+  # city_count
+  mutate(count = n())
+  
+top15_month %>% ggplot(aes(x = month, y = count, group = mentioned_city))+
+  geom_line()+
+  geom_point(aes(color = mentioned_city))+
+  facet_wrap(.~reorder(mentioned_city, count))+
+  xlab(NULL)+
+  ylab(NULL)+
+  labs(
+    title = "Trends for Top 15 Mentioned Cities by Month", 
+  )+
+  theme(
+    legend.position = "none", 
+    plot.title = element_text(hjust = 0.5))+
+  scale_color_hue(c = 40)
+```
+
+![](Case-Study-5_files/figure-html/unnamed-chunk-3-1.png)<!-- -->
+
+### Question 3
+***
+> Houston, TX and Charlotte, NC monthly comparison
+
+When comparing Houston and Charlotte, we conclude that Houston has more mentions than Charlotte. Charlotte has only been mentioned in January, July and December. On the flip side, Houston has more than 60 mentions in total from August to December.
+
+
+```r
+# comparing the headlines generated about Houston, TX and Charlotte, NC over time (by month)
+
+q3dat <- dat %>% 
+  mutate(mentioned_city = str_extract(headline, citystri)) %>% 
+  separate(datetime, into = c("date", "time"), sep = " at ", remove = TRUE)
+  # change to datetime type
+q3dat$date <- as.Date(q3dat$date, format = "%B %d, %Y") 
+  # extract month 
+q3dat$month <- month(q3dat$date, label = TRUE)
+
+q3dat <- q3dat %>% 
+  group_by(mentioned_city, month) %>% 
+  mutate(count = n()) %>% 
+  drop_na() %>% 
+  distinct(mentioned_city, count, month) %>% 
+  filter(mentioned_city == "Houston " | mentioned_city == "Charlotte ")
+
+q3dat %>% 
+  ggplot(aes(x = month, y = count, fill = mentioned_city))+
+  geom_col(position = "dodge")+
+  scale_fill_hue(c = 40)+
+  theme(
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank()
+  )+
+  labs(
+    fill = ""
+  )
+```
+
+![](Case-Study-5_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
+
